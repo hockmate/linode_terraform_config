@@ -1,0 +1,37 @@
+- hosts: all
+  tasks:
+    - name: Tárolt ip-k beolvasása
+      shell: cat ./test.txt
+      register: masterips
+      delegate_to: localhost
+
+    - name: Nginx telepítése
+      yum: 
+        name: 
+          - "nginx"
+          - "nginx-mod-stream"
+        state: latest
+
+    - name: Nginx konfigurációs fálj másolása és beállítása
+      template:
+        src: "./nginx.conf.j2"
+        dest: "/etc/nginx/nginx.conf"
+        owner: root
+        group: root
+        mode: 0644
+
+    - name: 6443 port engedélyezése Friewalld-n keresztül
+      shell: "{{ item }}"
+      with_items:
+        - "firewall-cmd --add-port=6443/tcp" 
+        - "firewall-cmd --add-port=6443/tcp --permanent"
+
+    - name: 6443 port engedélyezése SELinux szabállyal
+      shell: "semanage port -a -t http_port_t -p tcp 6443"
+
+    - name: Nginx service inditása
+      systemd: 
+        name: "nginx"
+        daemon_reload: yes
+        state: restarted
+        enabled: yes
